@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>---</title>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+<style type="text/css">
+body {background-color: #00aeef;}
+
+div#placard {
+    width: 1200px;
+    height: 800px;
+    position: relative;
+    z-index: 0;
+}
+
+div#mask {
+    position:absolute;
+    top:0px;
+    left:0px;
+    width: 1200px;
+    height: 800px;
+    background-image: url('/app/mask.png');
+    z-index: 2;
+}
+
+/*top 260px for occupied, 13px for vacant*/
+div#placard-inner {
+    position:absolute;
+    top:260px;
+    left:95px;
+    width: 1000px;
+    height: 500px;
+    z-index: 1;
+    background-image: url('/app/placard.png');
+}
+
+div#overlay {
+    position:fixed;
+    top:0px;
+    left:0px;
+    width:100%;
+    height:100%;
+    z-index:3;
+}
+
+input#notify {
+    margin-top: 20px;
+    margin-left: 20px;
+}
+
+</style>
+
+<script type="text/javascript">
+function centerPlacard() {
+    var viewportWidth = $(window).width();
+    var viewportHeight = $(window).height();
+    
+    var placardLeft = (viewportWidth - 1200)/2;
+    var placardTop = (viewportHeight - 800)/2;
+    
+    $("#placard").css({top:placardTop, left:placardLeft});
+}
+
+$(window).resize(centerPlacard);
+
+window.setNotification = function() {};
+
+$(document).ready(function(){
+    // Check every 10 seconds
+    var POLL_INTERVAL = 8000;
+	var POLL_VARIANCE = 3000;
+    window.wasOccupied = false;
+    window.wantNotification = false;
+    
+    function setOccupied() {
+        $("#placard-inner").animate({top:"260px"}, 300);
+        $("title").text("Stall - Occupied");
+    }
+    
+    function setVacant() {
+        $("#placard-inner").animate({top:"13px"}, 300);
+        $("title").text("Stall - Vacant");
+    }
+    
+    function updateStatus() {
+        $.ajax({
+            url: "/?" + Math.round(Math.random()*1073741824).toString(),
+            dataType: "text"
+        }).done(function(data) {
+            // Got response back.
+            var occupied = (data == "closed");
+            if (occupied) {
+                setOccupied();
+                window.wasOccupied = true;
+            }
+            else {
+                setVacant();
+                if (window.wantNotification) {
+                    alert("Stall is open!");
+                }
+                window.wasOccupied = false;
+                window.wantNotification = false;
+            }
+        }).always(function() {
+			// Randomization of continuation time to reduce the chances server spikes
+            setTimeout(updateStatus, POLL_INTERVAL - 0.5*POLL_VARIANCE + Math.random()*POLL_VARIANCE);
+        });
+        
+    };
+    
+    window.setNotification = function() {
+        window.wantNotification = true;
+    };
+    
+    centerPlacard();
+    updateStatus();
+});
+</script>
+</head>
+<body>
+    <div id="placard">
+        <div id="placard-inner">&nbsp;</div>
+        <div id="mask">&nbsp;</div>
+    </div>
+    <div id="overlay">
+        <input id="notify" type="button" value="Notify Me" onclick="window.setNotification();"></input>
+    </div>
+</body>
+</html>

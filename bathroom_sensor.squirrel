@@ -1,0 +1,60 @@
+// Two output ports, because the HTTP request nodes activate when there's ANY value sent down the 
+// output port, not a specific value. So when we want to activate an HTTP request, we just set
+// the value on the output port.
+local op_output = OutputPort("opened", "number");
+local cl_output = OutputPort("closed", "number");
+
+function pin7changed() {
+    // Copy-pasted from the tutorial to read a pin.
+    local buttonState = hardware.pin7.read();
+    if (buttonState == 0) {
+        server.show("Closed.");
+        // Activate the "closed" HTTP request to signal to the server that it's closed.
+        cl_output.set(1);
+    } else {
+        server.show("Opened.");
+        // Activate the "opened" HTTP request to signal to the server that it's opened.
+        op_output.set(1);
+    }
+}
+
+// Ticker input is meant to be attached to a ticker, which changes the input port value
+// at a regular interval. We'll use the interval to periodically check the open/closed
+// status and refresh the server, in case the connection, imp, or server skipped a beat.
+class Ticker extends InputPort
+{
+    type = "float"
+    pin = null
+ 
+    // boilerplate constructor from the input port tutorial
+    constructor(name, pin) {
+        base.constructor(name)
+        this.pin = pin
+    }
+ 
+    function set(value) {
+        // Copy-pasted from up above
+        local buttonState = hardware.pin7.read();
+        if (buttonState == 0) {
+            // except with a slightly different server message for debugging.
+            server.show("Tick. Closed.");
+            cl_output.set(1);
+        } else {
+            // except with a slightly different server message for debugging.
+            server.show("Tick. Opened.");
+            op_output.set(1);
+        }
+    }
+}
+ 
+// configure the imp's hardware
+// pin 7 is a digital input (0 or 1) and is pulled up externally
+hardware.pin7.configure(DIGITAL_IN_PULLUP, pin7changed);
+ 
+server.log("Sensor started.");
+ 
+// imp.configure registers us with the Imp Service
+// The first parameter Sets the text shown on the top line of the node in the planner - i.e., what this node is
+// The second parameter is a list of input ports in square brackets (we have none here)
+// The third parameter is a list of output ports in square brackets (we have none here)
+imp.configure("Bathroom Sensor v1", [Ticker("ticker", null)], [op_output, cl_output]);
